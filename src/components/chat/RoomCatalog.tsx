@@ -35,34 +35,38 @@ export function RoomCatalog({ onJoinRoom, onCreateRoom, onClose, userRoomIds }: 
 
   const loadPublicRooms = async () => {
     setLoadingRooms(true);
-    let query = supabase
-      .from('rooms')
-      .select('*')
-      .eq('visibility', 'public')
-      .eq('is_personal', false)
-      .order('created_at', { ascending: false });
+    try {
+      let query = supabase
+        .from('rooms')
+        .select('*')
+        .eq('visibility', 'public')
+        .eq('is_personal', false)
+        .order('created_at', { ascending: false });
 
-    if (search) {
-      query = query.ilike('name', `%${search}%`);
-    }
+      if (search) {
+        query = query.ilike('name', `%${search}%`);
+      }
 
-    const { data, error } = await query;
-    if (error) {
-      console.error('Error loading rooms:', error);
-      setLoadingRooms(false);
-      return;
-    }
-    if (data) {
-      const roomsWithCounts = await Promise.all(
-        data.map(async (room) => {
-          const { count } = await supabase
-            .from('room_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('room_id', room.id);
-          return { ...room, member_count: count ?? 0 };
-        })
-      );
-      setRooms(roomsWithCounts);
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error loading rooms:', error);
+        setLoadingRooms(false);
+        return;
+      }
+      if (data) {
+        const roomsWithCounts = await Promise.all(
+          data.map(async (room) => {
+            const { count } = await supabase
+              .from('room_members')
+              .select('*', { count: 'exact', head: true })
+              .eq('room_id', room.id);
+            return { ...room, member_count: count ?? 0 };
+          })
+        );
+        setRooms(roomsWithCounts);
+      }
+    } catch (e) {
+      console.error('Failed to load rooms:', e);
     }
     setLoadingRooms(false);
   };
@@ -88,26 +92,26 @@ export function RoomCatalog({ onJoinRoom, onCreateRoom, onClose, userRoomIds }: 
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b bg-card px-5 py-4">
+      <div className="flex items-center justify-between border-b bg-card px-5 py-3">
         <div>
-          <h2 className="text-lg font-bold text-foreground">Browse Rooms</h2>
-          <p className="text-xs text-muted-foreground">Find and join public chat rooms</p>
+          <h2 className="text-sm font-bold text-foreground">Browse Rooms</h2>
+          <p className="text-[11px] text-muted-foreground">Find and join public rooms</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 rounded-lg">
-                <Plus className="h-4 w-4" />
-                Create Room
+              <Button size="sm" className="h-8 gap-1 rounded-lg text-xs">
+                <Plus className="h-3.5 w-3.5" />
+                Create
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create Chat Room</DialogTitle>
+                <DialogTitle>Create Room</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label>Room Name</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Room Name</Label>
                   <Input
                     value={newName}
                     onChange={e => setNewName(e.target.value)}
@@ -117,12 +121,12 @@ export function RoomCatalog({ onJoinRoom, onCreateRoom, onClose, userRoomIds }: 
                     onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Description</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Description</Label>
                   <Textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="What's this room about?" maxLength={200} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Visibility</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Visibility</Label>
                   <Select value={newVis} onValueChange={(v) => setNewVis(v as 'public' | 'private')}>
                     <SelectTrigger>
                       <SelectValue />
@@ -139,45 +143,45 @@ export function RoomCatalog({ onJoinRoom, onCreateRoom, onClose, userRoomIds }: 
               </div>
             </DialogContent>
           </Dialog>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-lg">
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-lg">
             <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <div className="px-5 py-3">
+      <div className="px-5 py-2.5">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search rooms..."
-            className="rounded-xl pl-10"
+            className="h-9 rounded-xl pl-9 text-sm"
           />
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 scrollbar-thin">
-        <div className="grid gap-2">
+        <div className="grid gap-1.5">
           {rooms.map(room => {
             const isMember = userRoomIds.includes(room.id);
             return (
               <div
                 key={room.id}
-                className="flex items-center justify-between rounded-xl border bg-card p-4 transition-all hover:shadow-sm"
+                className="flex items-center justify-between rounded-xl border bg-card p-3 transition-colors hover:bg-muted/50"
               >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                     <Hash className="h-4 w-4 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-foreground">{room.name}</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{room.name}</h3>
                     {room.description && (
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{room.description}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{room.description}</p>
                     )}
-                    <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
                       <Users className="h-3 w-3" />
-                      <span>{room.member_count} {room.member_count === 1 ? 'member' : 'members'}</span>
+                      {room.member_count} {room.member_count === 1 ? 'member' : 'members'}
                     </div>
                   </div>
                 </div>
@@ -186,7 +190,7 @@ export function RoomCatalog({ onJoinRoom, onCreateRoom, onClose, userRoomIds }: 
                   variant={isMember ? 'secondary' : 'default'}
                   onClick={() => !isMember && onJoinRoom(room.id)}
                   disabled={isMember}
-                  className="rounded-lg"
+                  className="h-8 rounded-lg text-xs"
                 >
                   {isMember ? 'Joined' : 'Join'}
                 </Button>
@@ -195,19 +199,19 @@ export function RoomCatalog({ onJoinRoom, onCreateRoom, onClose, userRoomIds }: 
           })}
           {!loadingRooms && rooms.length === 0 && (
             <div className="py-12 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
                 <Hash className="h-5 w-5 text-muted-foreground" />
               </div>
               <p className="text-sm font-medium text-muted-foreground">
                 {search ? 'No rooms match your search' : 'No public rooms yet'}
               </p>
               <p className="mt-1 text-xs text-muted-foreground/60">
-                {search ? 'Try a different search term' : 'Be the first to create one!'}
+                {search ? 'Try a different search' : 'Create the first one!'}
               </p>
             </div>
           )}
           {loadingRooms && (
-            <p className="py-8 text-center text-sm text-muted-foreground">Loading rooms...</p>
+            <p className="py-8 text-center text-xs text-muted-foreground">Loading...</p>
           )}
         </div>
       </div>

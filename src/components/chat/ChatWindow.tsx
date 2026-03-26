@@ -5,7 +5,7 @@ import { Tables } from '@/integrations/supabase/types';
 import { MessageInput } from './MessageInput';
 import { MessageBubble } from './MessageBubble';
 import { Button } from '@/components/ui/button';
-import { LogOut, ChevronUp } from 'lucide-react';
+import { LogOut, ChevronUp, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Room = Tables<'rooms'>;
@@ -178,7 +178,7 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProp
       reply_to_id: replyTo?.id ?? null,
     });
     if (error) {
-      toast.error('Failed to send message: ' + error.message);
+      toast.error('Failed to send: ' + error.message);
       console.error('Send message error:', error);
     }
     setReplyTo(null);
@@ -186,12 +186,12 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProp
 
   const handleEdit = async (messageId: string, content: string) => {
     const { error } = await supabase.from('messages').update({ content, is_edited: true }).eq('id', messageId);
-    if (error) toast.error('Failed to edit message');
+    if (error) toast.error('Failed to edit');
   };
 
   const handleDelete = async (messageId: string) => {
     const { error } = await supabase.from('messages').delete().eq('id', messageId);
-    if (error) toast.error('Failed to delete message');
+    if (error) toast.error('Failed to delete');
   };
 
   const isOwner = room.owner_id === user?.id;
@@ -199,38 +199,38 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProp
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Room header */}
-      <div className="flex items-center justify-between border-b bg-card px-4 py-3">
-        <div className="min-w-0">
-          <h3 className="font-semibold text-foreground">
-            <span className="text-muted-foreground">#</span> {room.name}
-          </h3>
-          {room.description && <p className="truncate text-xs text-muted-foreground">{room.description}</p>}
-        </div>
-        <div className="flex items-center gap-1">
-          {!isOwner && !room.is_personal && (
-            <Button variant="ghost" size="sm" onClick={() => onLeaveRoom(room.id)} className="text-muted-foreground hover:text-destructive">
-              <LogOut className="mr-1 h-3.5 w-3.5" />
-              Leave
-            </Button>
+      <div className="flex items-center justify-between border-b bg-card px-4 py-2.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <Hash className="h-4 w-4 text-muted-foreground shrink-0" />
+          <h3 className="text-sm font-semibold text-foreground truncate">{room.name}</h3>
+          {room.description && (
+            <>
+              <span className="text-muted-foreground/30">·</span>
+              <p className="truncate text-xs text-muted-foreground">{room.description}</p>
+            </>
           )}
         </div>
+        {!isOwner && !room.is_personal && (
+          <Button variant="ghost" size="sm" onClick={() => onLeaveRoom(room.id)} className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1">
+            <LogOut className="h-3 w-3" />
+            Leave
+          </Button>
+        )}
       </div>
 
-      {/* Messages */}
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-3 scrollbar-thin"
+        className="flex-1 overflow-y-auto px-4 py-2 scrollbar-thin"
       >
         {loading && messages.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading messages...</p>
+          <p className="py-8 text-center text-xs text-muted-foreground">Loading messages...</p>
         )}
         {hasMore && messages.length > 0 && (
           <div className="py-2 text-center">
-            <Button variant="ghost" size="sm" onClick={loadOlderMessages} disabled={loading} className="gap-1">
+            <Button variant="ghost" size="sm" onClick={loadOlderMessages} disabled={loading} className="h-7 gap-1 text-xs">
               <ChevronUp className="h-3 w-3" />
-              Load older messages
+              Load older
             </Button>
           </div>
         )}
@@ -238,7 +238,7 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProp
           <div className="flex flex-1 items-center justify-center py-12">
             <div className="text-center">
               <p className="text-sm font-medium text-muted-foreground">No messages yet</p>
-              <p className="mt-1 text-xs text-muted-foreground/70">Be the first to say something!</p>
+              <p className="mt-1 text-xs text-muted-foreground/60">Be the first to say something!</p>
             </div>
           </div>
         )}
@@ -266,7 +266,6 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProp
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <MessageInput
         onSend={handleSend}
         replyTo={replyTo}

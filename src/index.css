@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,65 +6,65 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 222 20% 14%;
+    --background: 0 0% 98%;
+    --foreground: 240 10% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 20% 14%;
+    --card-foreground: 240 10% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 20% 14%;
+    --popover-foreground: 240 10% 10%;
 
-    --primary: 220 70% 50%;
+    --primary: 250 85% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 92%;
-    --secondary-foreground: 222 20% 14%;
+    --secondary: 240 5% 93%;
+    --secondary-foreground: 240 10% 10%;
 
-    --muted: 220 14% 94%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 240 5% 95%;
+    --muted-foreground: 240 4% 46%;
 
-    --accent: 40 90% 56%;
-    --accent-foreground: 222 20% 14%;
+    --accent: 250 85% 60%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 90%;
-    --input: 220 13% 90%;
-    --ring: 220 70% 50%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 250 85% 60%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
 
     /* Chat tokens */
-    --chat-bg: 0 0% 100%;
-    --chat-bubble-own: 220 70% 95%;
-    --chat-bubble-other: 220 14% 97%;
+    --chat-bg: 240 5% 96%;
+    --chat-bubble-own: 250 85% 96%;
+    --chat-bubble-other: 0 0% 100%;
     --chat-input-bg: 0 0% 100%;
-    --chat-input-border: 220 14% 85%;
-    --chat-timestamp: 220 10% 55%;
-    --chat-system: 220 10% 55%;
+    --chat-input-border: 240 6% 85%;
+    --chat-timestamp: 240 4% 55%;
+    --chat-system: 240 4% 55%;
 
     /* Presence */
-    --online: 142 60% 45%;
-    --afk: 40 90% 56%;
-    --offline: 220 10% 70%;
+    --online: 152 69% 45%;
+    --afk: 38 92% 50%;
+    --offline: 240 4% 65%;
 
-    --unread: 220 70% 50%;
+    --unread: 250 85% 60%;
 
     /* Sidebar */
-    --sidebar-background: 222 22% 16%;
-    --sidebar-foreground: 220 15% 85%;
-    --sidebar-primary: 220 70% 50%;
+    --sidebar-background: 240 15% 13%;
+    --sidebar-foreground: 240 5% 80%;
+    --sidebar-primary: 250 85% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 18% 22%;
-    --sidebar-accent-foreground: 220 15% 85%;
-    --sidebar-border: 222 16% 24%;
-    --sidebar-ring: 220 70% 50%;
-    --sidebar-muted: 220 12% 42%;
+    --sidebar-accent: 240 12% 18%;
+    --sidebar-accent-foreground: 240 5% 88%;
+    --sidebar-border: 240 10% 20%;
+    --sidebar-ring: 250 85% 60%;
+    --sidebar-muted: 240 5% 40%;
 
-    --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
-    --font-mono: 'IBM Plex Mono', 'Consolas', monospace;
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Consolas', monospace;
   }
 }
 
@@ -87,13 +87,13 @@
     scrollbar-color: hsl(var(--sidebar-muted)) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: hsl(var(--sidebar-muted));
-    border-radius: 3px;
+    border-radius: 9999px;
   }
 }

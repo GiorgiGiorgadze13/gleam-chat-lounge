@@ -29,7 +29,6 @@ export function MessageInput({ onSend, replyTo, replyProfile, onCancelReply }: M
     }
     onSend(content);
     setContent('');
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -43,9 +42,9 @@ export function MessageInput({ onSend, replyTo, replyProfile, onCancelReply }: M
   };
 
   return (
-    <div className="border-t bg-card p-3">
+    <div className="border-t bg-card px-4 py-2.5">
       {replyTo && (
-        <div className="mb-2 flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/10 px-3 py-2 text-xs">
+        <div className="mb-2 flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/10 px-3 py-1.5 text-xs">
           <Reply className="h-3 w-3 text-primary" />
           <span className="text-muted-foreground">Replying to</span>
           <span className="font-semibold text-primary">{replyProfile?.username ?? 'Unknown'}</span>
@@ -63,8 +62,8 @@ export function MessageInput({ onSend, replyTo, replyProfile, onCancelReply }: M
           onKeyDown={handleKeyDown}
           placeholder="Type a message..."
           rows={1}
-          className="flex-1 resize-none rounded-xl border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
-          style={{ maxHeight: '120px', minHeight: '42px' }}
+          className="flex-1 resize-none rounded-xl border border-input bg-muted/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring/30"
+          style={{ maxHeight: '120px', minHeight: '38px' }}
           onInput={(e) => {
             const el = e.currentTarget;
             el.style.height = 'auto';
@@ -75,7 +74,7 @@ export function MessageInput({ onSend, replyTo, replyProfile, onCancelReply }: M
           size="icon"
           onClick={handleSubmit}
           disabled={!content.trim()}
-          className="h-[42px] w-[42px] rounded-xl shadow-sm"
+          className="h-[38px] w-[38px] rounded-xl"
         >
           <Send className="h-4 w-4" />
         </Button>
