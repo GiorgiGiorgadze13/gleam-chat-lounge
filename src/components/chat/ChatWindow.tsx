@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Tables } from '@/integrations/supabase/types';
 import { MessageInput } from './MessageInput';
 import { MessageBubble } from './MessageBubble';
 import { Button } from '@/components/ui/button';
-import { LogOut, Settings } from 'lucide-react';
+import { LogOut, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Room = Tables<'rooms'>;
@@ -33,6 +33,9 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProp
   const [myRole, setMyRole] = useState<string>('member');
 
   useEffect(() => {
+    setMessages([]);
+    setProfiles({});
+    setReplyTo(null);
     loadMessages();
     loadMyRole();
 
@@ -106,15 +109,17 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProp
       setHasMore(data.length === PAGE_SIZE);
 
       const userIds = [...new Set(sorted.map(m => m.user_id))];
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', userIds);
+      if (userIds.length > 0) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', userIds);
 
-      if (profileData) {
-        const map: Record<string, Profile> = {};
-        profileData.forEach(p => { map[p.id] = p; });
-        setProfiles(map);
+        if (profileData) {
+          const map: Record<string, Profile> = {};
+          profileData.forEach(p => { map[p.id] = p; });
+          setProfiles(map);
+        }
       }
 
       setTimeout(() => messagesEndRef.current?.scrollIntoView(), 50);
@@ -141,12 +146,14 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProp
       setHasMore(data.length === PAGE_SIZE);
 
       const newUserIds = [...new Set(sorted.map(m => m.user_id))].filter(id => !profiles[id]);
-      if (newUserIds.length) {
+      if (newUserIds.length > 0) {
         const { data: pData } = await supabase.from('profiles').select('*').in('id', newUserIds);
         if (pData) {
-          const map = { ...profiles };
-          pData.forEach(p => { map[p.id] = p; });
-          setProfiles(map);
+          setProfiles(prev => {
+            const map = { ...prev };
+            pData.forEach(p => { map[p.id] = p; });
+            return map;
+          });
         }
       }
     }
@@ -170,16 +177,21 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProp
       content: content.trim(),
       reply_to_id: replyTo?.id ?? null,
     });
-    if (error) toast.error('Failed to send message');
+    if (error) {
+      toast.error('Failed to send message: ' + error.message);
+      console.error('Send message error:', error);
+    }
     setReplyTo(null);
   };
 
   const handleEdit = async (messageId: string, content: string) => {
-    await supabase.from('messages').update({ content, is_edited: true }).eq('id', messageId);
+    const { error } = await supabase.from('messages').update({ content, is_edited: true }).eq('id', messageId);
+    if (error) toast.error('Failed to edit message');
   };
 
   const handleDelete = async (messageId: string) => {
-    await supabase.from('messages').delete().eq('id', messageId);
+    const { error } = await supabase.from('messages').delete().eq('id', messageId);
+    if (error) toast.error('Failed to delete message');
   };
 
   const isOwner = room.owner_id === user?.id;
@@ -188,14 +200,16 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProp
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Room header */}
-      <div className="flex items-center justify-between border-b bg-card px-4 py-2">
-        <div>
-          <h3 className="font-mono font-semibold">{room.name}</h3>
-          {room.description && <p className="text-xs text-muted-foreground">{room.description}</p>}
+      <div className="flex items-center justify-between border-b bg-card px-4 py-3">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-foreground">
+            <span className="text-muted-foreground">#</span> {room.name}
+          </h3>
+          {room.description && <p className="truncate text-xs text-muted-foreground">{room.description}</p>}
         </div>
         <div className="flex items-center gap-1">
           {!isOwner && !room.is_personal && (
-            <Button variant="ghost" size="sm" onClick={() => onLeaveRoom(room.id)}>
+            <Button variant="ghost" size="sm" onClick={() => onLeaveRoom(room.id)} className="text-muted-foreground hover:text-destructive">
               <LogOut className="mr-1 h-3.5 w-3.5" />
               Leave
             </Button>
@@ -207,16 +221,25 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProp
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-2 scrollbar-thin"
+        className="flex-1 overflow-y-auto px-4 py-3 scrollbar-thin"
       >
         {loading && messages.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">Loading messages...</p>
         )}
         {hasMore && messages.length > 0 && (
           <div className="py-2 text-center">
-            <Button variant="ghost" size="sm" onClick={loadOlderMessages} disabled={loading}>
+            <Button variant="ghost" size="sm" onClick={loadOlderMessages} disabled={loading} className="gap-1">
+              <ChevronUp className="h-3 w-3" />
               Load older messages
             </Button>
+          </div>
+        )}
+        {!loading && messages.length === 0 && (
+          <div className="flex flex-1 items-center justify-center py-12">
+            <div className="text-center">
+              <p className="text-sm font-medium text-muted-foreground">No messages yet</p>
+              <p className="mt-1 text-xs text-muted-foreground/70">Be the first to say something!</p>
+            </div>
           </div>
         )}
         {messages.map((msg, i) => {

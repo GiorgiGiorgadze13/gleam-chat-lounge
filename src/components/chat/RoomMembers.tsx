@@ -46,7 +46,10 @@ export function RoomMembers({ roomId }: RoomMembersProps) {
       .select('*')
       .eq('room_id', roomId);
 
-    if (!memberData) return;
+    if (!memberData || memberData.length === 0) {
+      setMembers([]);
+      return;
+    }
 
     const userIds = memberData.map(m => m.user_id);
     const [{ data: profileData }, { data: presenceData }] = await Promise.all([
@@ -63,36 +66,54 @@ export function RoomMembers({ roomId }: RoomMembersProps) {
       presence: presenceMap.get(m.user_id) ?? 'offline',
     }));
 
-    // Sort: online first, then afk, then offline
     const order = { online: 0, afk: 1, offline: 2 };
     enriched.sort((a, b) => (order[a.presence ?? 'offline'] - order[b.presence ?? 'offline']));
 
     setMembers(enriched);
   };
 
+  const onlineCount = members.filter(m => m.presence === 'online').length;
+
   return (
-    <aside className="w-48 border-l bg-card overflow-y-auto scrollbar-thin">
-      <div className="p-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <aside className="hidden w-52 border-l bg-card overflow-y-auto scrollbar-thin lg:block">
+      <div className="p-4">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Members — {members.length}
         </h4>
-        <div className="mt-2 space-y-1">
-          {members.map(m => (
-            <div key={m.id} className="flex items-center gap-2 rounded px-2 py-1">
-              <PresenceDot status={m.presence ?? 'offline'} />
-              <span className={cn(
-                'truncate font-mono text-xs',
-                m.presence === 'offline' ? 'text-muted-foreground' : 'text-foreground'
-              )}>
-                {m.profile?.username ?? 'Unknown'}
-              </span>
-              {m.role !== 'member' && (
-                <span className="ml-auto text-[9px] font-semibold uppercase text-accent">
-                  {m.role}
-                </span>
-              )}
-            </div>
-          ))}
+        <p className="text-[10px] text-muted-foreground/60">{onlineCount} online</p>
+
+        <div className="mt-3 space-y-0.5">
+          {members.map(m => {
+            const initial = (m.profile?.username?.[0] ?? '?').toUpperCase();
+            return (
+              <div key={m.id} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/50">
+                <div className="relative">
+                  <div className={cn(
+                    'flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold',
+                    m.presence === 'offline'
+                      ? 'bg-muted text-muted-foreground'
+                      : 'bg-primary/10 text-primary'
+                  )}>
+                    {initial}
+                  </div>
+                  <PresenceDot status={m.presence ?? 'offline'} className="absolute -bottom-0.5 -right-0.5 ring-2 ring-card" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className={cn(
+                    'block truncate text-xs font-medium',
+                    m.presence === 'offline' ? 'text-muted-foreground' : 'text-foreground'
+                  )}>
+                    {m.profile?.username ?? 'Unknown'}
+                  </span>
+                  {m.role !== 'member' && (
+                    <span className="text-[9px] font-bold uppercase text-primary/60">
+                      {m.role}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </aside>
