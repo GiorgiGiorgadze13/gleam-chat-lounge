@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Tables } from '@/integrations/supabase/types';
 import { Button } from '@/components/ui/button';
-import { Send, X } from 'lucide-react';
+import { Send, X, Reply } from 'lucide-react';
 
 type Message = Tables<'messages'>;
 type Profile = Tables<'profiles'>;
@@ -29,6 +29,10 @@ export function MessageInput({ onSend, replyTo, replyProfile, onCancelReply }: M
     }
     onSend(content);
     setContent('');
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -39,11 +43,12 @@ export function MessageInput({ onSend, replyTo, replyProfile, onCancelReply }: M
   };
 
   return (
-    <div className="border-t bg-chat-input-bg p-3">
+    <div className="border-t bg-card p-3">
       {replyTo && (
-        <div className="mb-2 flex items-center gap-2 rounded bg-muted px-3 py-1.5 text-xs">
+        <div className="mb-2 flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/10 px-3 py-2 text-xs">
+          <Reply className="h-3 w-3 text-primary" />
           <span className="text-muted-foreground">Replying to</span>
-          <span className="font-mono font-medium">{replyProfile?.username ?? 'Unknown'}</span>
+          <span className="font-semibold text-primary">{replyProfile?.username ?? 'Unknown'}</span>
           <span className="flex-1 truncate text-muted-foreground">{replyTo.content}</span>
           <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onCancelReply}>
             <X className="h-3 w-3" />
@@ -58,15 +63,20 @@ export function MessageInput({ onSend, replyTo, replyProfile, onCancelReply }: M
           onKeyDown={handleKeyDown}
           placeholder="Type a message..."
           rows={1}
-          className="flex-1 resize-none rounded-md border border-chat-input-border bg-chat-input-bg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          style={{ maxHeight: '120px', minHeight: '38px' }}
+          className="flex-1 resize-none rounded-xl border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
+          style={{ maxHeight: '120px', minHeight: '42px' }}
           onInput={(e) => {
             const el = e.currentTarget;
             el.style.height = 'auto';
             el.style.height = Math.min(el.scrollHeight, 120) + 'px';
           }}
         />
-        <Button size="icon" onClick={handleSubmit} disabled={!content.trim()}>
+        <Button
+          size="icon"
+          onClick={handleSubmit}
+          disabled={!content.trim()}
+          className="h-[42px] w-[42px] rounded-xl shadow-sm"
+        >
           <Send className="h-4 w-4" />
         </Button>
       </div>

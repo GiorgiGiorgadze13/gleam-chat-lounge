@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Reply, Pencil, Trash2, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 type Message = Tables<'messages'>;
 type Profile = Tables<'profiles'>;
@@ -37,56 +36,71 @@ export function MessageBubble({
     }
   };
 
+  const initial = (profile?.username?.[0] ?? '?').toUpperCase();
+  const colors = [
+    'bg-blue-500', 'bg-emerald-500', 'bg-orange-500', 'bg-purple-500',
+    'bg-pink-500', 'bg-teal-500', 'bg-indigo-500', 'bg-rose-500',
+  ];
+  const colorIdx = (profile?.username?.charCodeAt(0) ?? 0) % colors.length;
+
   return (
     <div
-      className={cn('group relative px-2 py-0.5', showAuthor && 'mt-3')}
+      className={cn(
+        'group relative rounded-lg px-3 py-1 transition-colors hover:bg-muted/50',
+        showAuthor && 'mt-4 pt-2'
+      )}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Reply reference */}
       {repliedMessage && (
-        <div className="mb-1 flex items-center gap-1 pl-8 text-xs text-muted-foreground">
-          <Reply className="h-3 w-3" />
-          <span className="font-mono font-medium">{repliedProfile?.username ?? 'Unknown'}</span>
-          <span className="truncate max-w-[200px]">{repliedMessage.content}</span>
+        <div className="mb-1 flex items-center gap-1.5 pl-10 text-xs">
+          <div className="h-3 w-0.5 rounded-full bg-primary/40" />
+          <Reply className="h-3 w-3 text-muted-foreground" />
+          <span className="font-medium text-primary/70">{repliedProfile?.username ?? 'Unknown'}</span>
+          <span className="truncate text-muted-foreground">{repliedMessage.content}</span>
         </div>
       )}
 
-      <div className="flex gap-2">
-        {/* Avatar placeholder */}
+      <div className="flex gap-3">
+        {/* Avatar */}
         {showAuthor ? (
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary">
-            {(profile?.username?.[0] ?? '?').toUpperCase()}
+          <div className={cn(
+            'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm',
+            colors[colorIdx]
+          )}>
+            {initial}
           </div>
         ) : (
-          <div className="w-8 shrink-0" />
+          <div className="w-9 shrink-0" />
         )}
 
         <div className="min-w-0 flex-1">
           {showAuthor && (
             <div className="flex items-baseline gap-2">
-              <span className="font-mono text-sm font-semibold text-foreground">
+              <span className="text-sm font-bold text-foreground">
                 {profile?.username ?? 'Unknown'}
               </span>
-              <span className="text-[10px] text-chat-timestamp">
-                {format(new Date(message.created_at), 'HH:mm')}
+              <span className="text-[11px] text-muted-foreground">
+                {format(new Date(message.created_at), 'h:mm a')}
               </span>
             </div>
           )}
 
           {editing ? (
-            <div className="flex items-center gap-1 mt-0.5">
-              <Input
+            <div className="mt-1 flex items-center gap-1.5">
+              <textarea
                 value={editContent}
                 onChange={e => setEditContent(e.target.value)}
-                className="h-7 text-sm"
+                className="flex-1 rounded-lg border border-input bg-card px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 onKeyDown={e => {
-                  if (e.key === 'Enter') handleSaveEdit();
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); }
                   if (e.key === 'Escape') setEditing(false);
                 }}
                 autoFocus
+                rows={1}
               />
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveEdit}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={handleSaveEdit}>
                 <Check className="h-3.5 w-3.5" />
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(false)}>
@@ -94,10 +108,10 @@ export function MessageBubble({
               </Button>
             </div>
           ) : (
-            <p className="text-sm text-foreground whitespace-pre-wrap break-words">
+            <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words">
               {message.content}
               {message.is_edited && (
-                <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>
+                <span className="ml-1.5 text-[10px] italic text-muted-foreground">(edited)</span>
               )}
             </p>
           )}
@@ -105,7 +119,7 @@ export function MessageBubble({
 
         {/* Actions */}
         {hovered && !editing && (
-          <div className="flex items-start gap-0.5 shrink-0">
+          <div className="absolute -top-3 right-2 flex items-center gap-0.5 rounded-lg border bg-card px-1 py-0.5 shadow-sm">
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onReply} title="Reply">
               <Reply className="h-3 w-3" />
             </Button>
@@ -115,7 +129,7 @@ export function MessageBubble({
               </Button>
             )}
             {(isOwn || isAdmin) && (
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => onDelete(message.id)} title="Delete">
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => onDelete(message.id)} title="Delete">
                 <Trash2 className="h-3 w-3" />
               </Button>
             )}

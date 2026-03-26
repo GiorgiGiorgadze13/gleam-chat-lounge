@@ -4,71 +4,64 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Classic Web Chat Design System */
-
 @layer base {
   :root {
-    --background: 220 16% 96%;
-    --foreground: 220 20% 14%;
+    --background: 220 20% 97%;
+    --foreground: 222 20% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 14%;
+    --card-foreground: 222 20% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 14%;
+    --popover-foreground: 222 20% 14%;
 
-    --primary: 210 60% 38%;
+    --primary: 220 70% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 90%;
-    --secondary-foreground: 220 20% 14%;
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 222 20% 14%;
 
-    --muted: 220 14% 92%;
+    --muted: 220 14% 94%;
     --muted-foreground: 220 10% 46%;
 
-    --accent: 45 80% 55%;
-    --accent-foreground: 220 20% 14%;
+    --accent: 40 90% 56%;
+    --accent-foreground: 222 20% 14%;
 
-    --destructive: 0 65% 50%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 86%;
-    --input: 220 14% 86%;
-    --ring: 210 60% 38%;
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 220 70% 50%;
 
-    --radius: 0.375rem;
+    --radius: 0.625rem;
 
-    /* Chat-specific tokens */
-    --sidebar-bg: 220 20% 18%;
-    --sidebar-fg: 220 10% 82%;
-    --sidebar-active: 210 60% 38%;
-    --sidebar-hover: 220 18% 24%;
-    --sidebar-muted: 220 12% 42%;
-    --sidebar-border: 220 16% 26%;
-    --sidebar-accent: 45 80% 55%;
-
+    /* Chat tokens */
     --chat-bg: 0 0% 100%;
-    --chat-bubble-own: 210 55% 94%;
-    --chat-bubble-other: 220 14% 96%;
+    --chat-bubble-own: 220 70% 95%;
+    --chat-bubble-other: 220 14% 97%;
     --chat-input-bg: 0 0% 100%;
-    --chat-input-border: 220 14% 82%;
-    --chat-timestamp: 220 10% 58%;
-    --chat-system: 220 10% 58%;
+    --chat-input-border: 220 14% 85%;
+    --chat-timestamp: 220 10% 55%;
+    --chat-system: 220 10% 55%;
 
+    /* Presence */
     --online: 142 60% 45%;
-    --afk: 45 80% 55%;
-    --offline: 220 10% 62%;
+    --afk: 40 90% 56%;
+    --offline: 220 10% 70%;
 
-    --unread: 0 72% 56%;
+    --unread: 220 70% 50%;
 
-    --sidebar-background: 220 20% 18%;
-    --sidebar-foreground: 220 10% 82%;
-    --sidebar-primary: 210 60% 38%;
+    /* Sidebar */
+    --sidebar-background: 222 22% 16%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-primary: 220 70% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 18% 24%;
-    --sidebar-accent-foreground: 220 10% 82%;
-    --sidebar-border: 220 16% 26%;
-    --sidebar-ring: 210 60% 38%;
+    --sidebar-accent: 222 18% 22%;
+    --sidebar-accent-foreground: 220 15% 85%;
+    --sidebar-border: 222 16% 24%;
+    --sidebar-ring: 220 70% 50%;
+    --sidebar-muted: 220 12% 42%;
 
     --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
     --font-mono: 'IBM Plex Mono', 'Consolas', monospace;
@@ -79,12 +72,10 @@
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
   }
-
   code, pre, .font-mono {
     font-family: var(--font-mono);
   }
@@ -95,15 +86,12 @@
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--sidebar-muted)) transparent;
   }
-
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
   }
-
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
-
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: hsl(var(--sidebar-muted));
     border-radius: 3px;
