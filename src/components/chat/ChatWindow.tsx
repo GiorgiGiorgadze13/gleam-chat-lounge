@@ -4,9 +4,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { Tables } from '@/integrations/supabase/types';
 import { MessageInput } from './MessageInput';
 import { MessageBubble } from './MessageBubble';
+import { CallButton } from './CallButton';
 import { Button } from '@/components/ui/button';
 import { LogOut, ChevronUp, Hash } from 'lucide-react';
 import { toast } from 'sonner';
+import type { CallType } from '@/hooks/useWebRTC';
 
 type Room = Tables<'rooms'>;
 type Message = Tables<'messages'>;
@@ -16,6 +18,7 @@ interface ChatWindowProps {
   room: Room;
   onLeaveRoom: (roomId: string) => void;
   onRoomsChanged: () => void;
+  onStartCall: (targetUserId: string, targetUsername: string, roomId: string, type: CallType) => void;
 }
 
 const PAGE_SIZE = 50;
