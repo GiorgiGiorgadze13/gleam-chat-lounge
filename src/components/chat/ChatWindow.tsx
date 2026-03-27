@@ -23,7 +23,7 @@ interface ChatWindowProps {
 
 const PAGE_SIZE = 50;
 
-export function ChatWindow({ room, onLeaveRoom, onRoomsChanged }: ChatWindowProps) {
+export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: ChatWindowProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
