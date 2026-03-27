@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePresence } from '@/hooks/usePresence';
+import { useWebRTC } from '@/hooks/useWebRTC';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { Sidebar } from './Sidebar';
@@ -8,6 +9,8 @@ import { ChatWindow } from './ChatWindow';
 import { RoomMembers } from './RoomMembers';
 import { TopBar } from './TopBar';
 import { RoomCatalog } from './RoomCatalog';
+import { CallModal } from './CallModal';
+import { IncomingCall } from './IncomingCall';
 import { toast } from 'sonner';
 import { MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,16 +20,44 @@ type Room = Tables<'rooms'>;
 export function ChatLayout() {
   usePresence();
   const { user, profile } = useAuth();
+  const webrtc = useWebRTC();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [showCatalog, setShowCatalog] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<any>(null);
 
   const activeRoom = rooms.find(r => r.id === activeRoomId) ?? null;
 
   useEffect(() => {
     if (!user) return;
     loadRooms();
+  }, [user]);
+
+  // Listen for incoming calls
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('incoming-calls')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'call_signals',
+        filter: `callee_id=eq.${user.id}`,
+      }, async (payload) => {
+        const sig = payload.new as any;
+        if (sig.signal_type === 'offer' && sig.status === 'ringing') {
+          const { data: callerProfile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', sig.caller_id)
+            .single();
+          setIncomingCall({ ...sig, callerName: callerProfile?.username || 'Unknown' });
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const loadRooms = async () => {
@@ -155,7 +186,7 @@ export function ChatLayout() {
               userRoomIds={rooms.map(r => r.id)}
             />
           ) : activeRoom ? (
-            <ChatWindow room={activeRoom} onLeaveRoom={handleLeaveRoom} onRoomsChanged={loadRooms} />
+            <ChatWindow room={activeRoom} onLeaveRoom={handleLeaveRoom} onRoomsChanged={loadRooms} onStartCall={webrtc.startCall} />
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
@@ -178,6 +209,37 @@ export function ChatLayout() {
           <RoomMembers roomId={activeRoom.id} />
         )}
       </div>
+
+      {/* Call modals */}
+      {webrtc.callState.status !== 'idle' && (
+        <CallModal
+          status={webrtc.callState.status}
+          callType={webrtc.callState.callType}
+          remoteUsername={webrtc.callState.remoteUsername}
+          isMuted={webrtc.callState.isMuted}
+          isVideoOff={webrtc.callState.isVideoOff}
+          localVideoRef={webrtc.localVideoRef}
+          remoteVideoRef={webrtc.remoteVideoRef}
+          onHangUp={webrtc.hangUp}
+          onToggleMute={webrtc.toggleMute}
+          onToggleVideo={webrtc.toggleVideo}
+        />
+      )}
+
+      {incomingCall && webrtc.callState.status === 'idle' && (
+        <IncomingCall
+          callerName={incomingCall.callerName}
+          callType={incomingCall.call_type}
+          onAccept={() => {
+            webrtc.answerCall(incomingCall);
+            setIncomingCall(null);
+          }}
+          onReject={() => {
+            webrtc.rejectCall(incomingCall);
+            setIncomingCall(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      call_signals: {
+        Row: {
+          call_type: string
+          callee_id: string | null
+          caller_id: string
+          created_at: string
+          id: string
+          room_id: string
+          signal_data: Json
+          signal_type: string
+          status: string
+        }
+        Insert: {
+          call_type?: string
+          callee_id?: string | null
+          caller_id: string
+          created_at?: string
+          id?: string
+          room_id: string
+          signal_data?: Json
+          signal_type: string
+          status?: string
+        }
+        Update: {
+          call_type?: string
+          callee_id?: string | null
+          caller_id?: string
+          created_at?: string
+          id?: string
+          room_id?: string
+          signal_data?: Json
+          signal_type?: string
+          status?: string
+        }
+        Relationships: []
+      }
       friend_requests: {
         Row: {
           created_at: string
