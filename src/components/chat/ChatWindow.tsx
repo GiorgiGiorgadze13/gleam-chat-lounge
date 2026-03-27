@@ -200,6 +200,27 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
   const isOwner = room.owner_id === user?.id;
   const isAdmin = myRole === 'admin' || myRole === 'owner';
 
+  const handleStartCall = async (type: CallType) => {
+    if (!user) return;
+    // Get first other member in the room to call
+    const { data: members } = await supabase
+      .from('room_members')
+      .select('user_id')
+      .eq('room_id', room.id)
+      .neq('user_id', user.id)
+      .limit(1);
+
+    if (!members || members.length === 0) {
+      toast.error('No other members in this room to call');
+      return;
+    }
+
+    const targetId = members[0].user_id;
+    const targetProfile = profiles[targetId];
+    const targetName = targetProfile?.username || 'User';
+    onStartCall(targetId, targetName, room.id, type);
+  };
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="flex items-center justify-between border-b bg-card px-4 py-2.5">
@@ -213,12 +234,18 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
             </>
           )}
         </div>
-        {!isOwner && !room.is_personal && (
-          <Button variant="ghost" size="sm" onClick={() => onLeaveRoom(room.id)} className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1">
-            <LogOut className="h-3 w-3" />
-            Leave
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          <CallButton
+            onVoiceCall={() => handleStartCall('voice')}
+            onVideoCall={() => handleStartCall('video')}
+          />
+          {!isOwner && !room.is_personal && (
+            <Button variant="ghost" size="sm" onClick={() => onLeaveRoom(room.id)} className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1">
+              <LogOut className="h-3 w-3" />
+              Leave
+            </Button>
+          )}
+        </div>
       </div>
 
       <div
