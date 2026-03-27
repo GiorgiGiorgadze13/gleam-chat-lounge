@@ -20,10 +20,12 @@ type Room = Tables<'rooms'>;
 export function ChatLayout() {
   usePresence();
   const { user, profile } = useAuth();
+  const webrtc = useWebRTC();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [showCatalog, setShowCatalog] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<any>(null);
 
   const activeRoom = rooms.find(r => r.id === activeRoomId) ?? null;
 
