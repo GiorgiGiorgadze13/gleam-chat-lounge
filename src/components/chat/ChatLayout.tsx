@@ -34,6 +34,32 @@ export function ChatLayout() {
     loadRooms();
   }, [user]);
 
+  // Listen for incoming calls
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('incoming-calls')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'call_signals',
+        filter: `callee_id=eq.${user.id}`,
+      }, async (payload) => {
+        const sig = payload.new as any;
+        if (sig.signal_type === 'offer' && sig.status === 'ringing') {
+          const { data: callerProfile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', sig.caller_id)
+            .single();
+          setIncomingCall({ ...sig, callerName: callerProfile?.username || 'Unknown' });
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
   const loadRooms = async () => {
     if (!user) return;
     try {
