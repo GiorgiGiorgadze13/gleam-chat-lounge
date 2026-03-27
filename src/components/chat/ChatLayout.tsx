@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePresence } from '@/hooks/usePresence';
+import { useWebRTC } from '@/hooks/useWebRTC';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { Sidebar } from './Sidebar';
@@ -8,6 +9,8 @@ import { ChatWindow } from './ChatWindow';
 import { RoomMembers } from './RoomMembers';
 import { TopBar } from './TopBar';
 import { RoomCatalog } from './RoomCatalog';
+import { CallModal } from './CallModal';
+import { IncomingCall } from './IncomingCall';
 import { toast } from 'sonner';
 import { MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
