@@ -209,6 +209,37 @@ export function ChatLayout() {
           <RoomMembers roomId={activeRoom.id} />
         )}
       </div>
+
+      {/* Call modals */}
+      {webrtc.callState.status !== 'idle' && (
+        <CallModal
+          status={webrtc.callState.status}
+          callType={webrtc.callState.callType}
+          remoteUsername={webrtc.callState.remoteUsername}
+          isMuted={webrtc.callState.isMuted}
+          isVideoOff={webrtc.callState.isVideoOff}
+          localVideoRef={webrtc.localVideoRef}
+          remoteVideoRef={webrtc.remoteVideoRef}
+          onHangUp={webrtc.hangUp}
+          onToggleMute={webrtc.toggleMute}
+          onToggleVideo={webrtc.toggleVideo}
+        />
+      )}
+
+      {incomingCall && webrtc.callState.status === 'idle' && (
+        <IncomingCall
+          callerName={incomingCall.callerName}
+          callType={incomingCall.call_type}
+          onAccept={() => {
+            webrtc.answerCall(incomingCall);
+            setIncomingCall(null);
+          }}
+          onReject={() => {
+            webrtc.rejectCall(incomingCall);
+            setIncomingCall(null);
+          }}
+        />
+      )}
     </div>
   );
 }
