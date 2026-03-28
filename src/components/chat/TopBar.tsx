@@ -1,7 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Tables } from '@/integrations/supabase/types';
 import { Button } from '@/components/ui/button';
-import { LogOut, Search, MessageCircle } from 'lucide-react';
+import { LogOut, Search, MessageCircle, Users, Settings } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,9 +19,11 @@ interface TopBarProps {
   profile: Profile | null;
   onShowCatalog: () => void;
   activeRoom: Room | null;
+  onShowFriends: () => void;
+  onShowSettings: () => void;
 }
 
-export function TopBar({ profile, onShowCatalog, activeRoom }: TopBarProps) {
+export function TopBar({ profile, onShowCatalog, activeRoom, onShowFriends, onShowSettings }: TopBarProps) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -56,6 +58,13 @@ export function TopBar({ profile, onShowCatalog, activeRoom }: TopBarProps) {
         <Button variant="ghost" size="sm" onClick={onShowCatalog} className="h-8 gap-1.5 rounded-lg text-xs">
           <Search className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Browse</span>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onShowFriends} className="h-8 gap-1.5 rounded-lg text-xs">
+          <Users className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Friends</span>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onShowSettings} className="h-8 gap-1.5 rounded-lg text-xs">
+          <Settings className="h-3.5 w-3.5" />
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
