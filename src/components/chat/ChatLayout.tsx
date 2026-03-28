@@ -9,6 +9,8 @@ import { ChatWindow } from './ChatWindow';
 import { RoomMembers } from './RoomMembers';
 import { TopBar } from './TopBar';
 import { RoomCatalog } from './RoomCatalog';
+import { FriendsPanel } from './FriendsPanel';
+import { SettingsPanel } from './SettingsPanel';
 import { CallModal } from './CallModal';
 import { IncomingCall } from './IncomingCall';
 import { toast } from 'sonner';
@@ -24,6 +26,8 @@ export function ChatLayout() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [showCatalog, setShowCatalog] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [incomingCall, setIncomingCall] = useState<any>(null);
 
@@ -165,8 +169,10 @@ export function ChatLayout() {
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <TopBar
         profile={profile}
-        onShowCatalog={() => setShowCatalog(true)}
+        onShowCatalog={() => { setShowCatalog(true); setShowFriends(false); setShowSettings(false); }}
         activeRoom={activeRoom}
+        onShowFriends={() => { setShowFriends(true); setShowCatalog(false); setShowSettings(false); }}
+        onShowSettings={() => { setShowSettings(true); setShowCatalog(false); setShowFriends(false); }}
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
@@ -185,6 +191,10 @@ export function ChatLayout() {
               onClose={() => setShowCatalog(false)}
               userRoomIds={rooms.map(r => r.id)}
             />
+          ) : showFriends ? (
+            <FriendsPanel onClose={() => setShowFriends(false)} />
+          ) : showSettings ? (
+            <SettingsPanel onClose={() => setShowSettings(false)} />
           ) : activeRoom ? (
             <ChatWindow room={activeRoom} onLeaveRoom={handleLeaveRoom} onRoomsChanged={loadRooms} onStartCall={webrtc.startCall} />
           ) : (
