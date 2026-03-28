@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { MessageCircle, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 export default function AuthPage() {
@@ -171,6 +172,23 @@ export default function AuthPage() {
               {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
               {!loading && <ArrowRight className="h-4 w-4" />}
             </Button>
+
+            {isLogin && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!email) { toast.error('Enter your email first'); return; }
+                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/reset-password`,
+                  });
+                  if (error) toast.error(error.message);
+                  else toast.success('Password reset email sent! Check your inbox.');
+                }}
+                className="text-xs text-primary hover:underline"
+              >
+                Forgot password?
+              </button>
+            )}
           </form>
 
           <p className="text-center text-sm text-muted-foreground">

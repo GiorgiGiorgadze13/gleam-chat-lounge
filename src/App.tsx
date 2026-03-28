@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index.tsx";
 import AuthPage from "./pages/AuthPage.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient({
@@ -22,6 +23,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
