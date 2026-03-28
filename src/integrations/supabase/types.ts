@@ -454,6 +454,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_join_room: {
+        Args: { _room_id: string; _user_id: string }
+        Returns: boolean
+      }
       delete_user_account: { Args: { _user_id: string }; Returns: undefined }
       is_room_admin: {
         Args: { _room_id: string; _user_id: string }

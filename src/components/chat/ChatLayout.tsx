@@ -91,12 +91,27 @@ export function ChatLayout() {
   const handleJoinRoom = async (roomId: string) => {
     if (!user) return;
     try {
+      // Check if user can join (handles private/invite-only + ban check)
+      const { data: canJoin } = await supabase.rpc('can_join_room', {
+        _user_id: user.id,
+        _room_id: roomId,
+      });
+
+      if (!canJoin) {
+        toast.error('You cannot join this room. It may be private or you may be banned.');
+        return;
+      }
+
       const { error } = await supabase.from('room_members').insert({
         room_id: roomId,
         user_id: user.id,
       });
       if (error) {
-        toast.error('Failed to join room: ' + error.message);
+        if (error.message.includes('row-level security')) {
+          toast.error('You are banned from this room');
+        } else {
+          toast.error('Failed to join room: ' + error.message);
+        }
         return;
       }
       toast.success('Joined room!');
