@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Reply, Pencil, Trash2, Check, X, Ban } from 'lucide-react';
+import { Reply, Pencil, Trash2, Check, X, Ban, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 type Message = Tables<'messages'>;
 type Profile = Tables<'profiles'>;
+type Attachment = Tables<'message_attachments'>;
 
 interface MessageBubbleProps {
   message: Message;
@@ -16,6 +18,7 @@ interface MessageBubbleProps {
   isAdmin: boolean;
   repliedMessage?: Message | null;
   repliedProfile?: Profile;
+  attachments?: Attachment[];
   onReply: () => void;
   onEdit: (id: string, content: string) => void;
   onDelete: (id: string) => void;
@@ -27,9 +30,61 @@ const AVATAR_COLORS = [
   'bg-pink-500', 'bg-teal-500', 'bg-indigo-500', 'bg-rose-500',
 ];
 
+function AttachmentView({ attachment }: { attachment: Attachment }) {
+  const isImage = attachment.content_type.startsWith('image/');
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Extract the storage path from the file_url
+    const path = attachment.file_url;
+    if (!path) return;
+    supabase.storage
+      .from('chat-attachments')
+      .createSignedUrl(path, 3600)
+      .then(({ data }) => {
+        if (data?.signedUrl) setSignedUrl(data.signedUrl);
+      });
+  }, [attachment.file_url]);
+
+  if (!signedUrl) return null;
+
+  if (isImage) {
+    return (
+      <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="block mt-1">
+        <img
+          src={signedUrl}
+          alt={attachment.file_name}
+          className="max-h-60 max-w-xs rounded-lg border object-contain"
+          loading="lazy"
+        />
+      </a>
+    );
+  }
+
+  const sizeStr = attachment.file_size < 1024 * 1024
+    ? `${(attachment.file_size / 1024).toFixed(1)} KB`
+    : `${(attachment.file_size / (1024 * 1024)).toFixed(1)} MB`;
+
+  return (
+    <a
+      href={signedUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-1 inline-flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs hover:bg-muted/50 transition-colors"
+    >
+      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+      <div className="min-w-0">
+        <span className="block truncate font-medium text-foreground">{attachment.file_name}</span>
+        <span className="text-muted-foreground/60">{sizeStr}</span>
+      </div>
+      <Download className="h-3 w-3 text-muted-foreground shrink-0" />
+    </a>
+  );
+}
+
 export function MessageBubble({
   message, profile, isOwn, showAuthor, isAdmin,
-  repliedMessage, repliedProfile, onReply, onEdit, onDelete, onBanUser,
+  repliedMessage, repliedProfile, attachments, onReply, onEdit, onDelete, onBanUser,
 }: MessageBubbleProps) {
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
@@ -108,12 +163,23 @@ export function MessageBubble({
               </Button>
             </div>
           ) : (
-            <p className="text-[13px] leading-relaxed text-foreground whitespace-pre-wrap break-words">
-              {message.content}
-              {message.is_edited && (
-                <span className="ml-1 text-[10px] italic text-muted-foreground">(edited)</span>
+            <>
+              {message.content && (
+                <p className="text-[13px] leading-relaxed text-foreground whitespace-pre-wrap break-words">
+                  {message.content}
+                  {message.is_edited && (
+                    <span className="ml-1 text-[10px] italic text-muted-foreground">(edited)</span>
+                  )}
+                </p>
               )}
-            </p>
+              {attachments && attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {attachments.map(att => (
+                    <AttachmentView key={att.id} attachment={att} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 

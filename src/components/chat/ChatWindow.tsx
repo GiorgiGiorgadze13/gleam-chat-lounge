@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Tables } from '@/integrations/supabase/types';
-import { MessageInput } from './MessageInput';
+import { MessageInput, PendingFile } from './MessageInput';
 import { MessageBubble } from './MessageBubble';
 import { CallButton } from './CallButton';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import type { CallType } from '@/hooks/useWebRTC';
 type Room = Tables<'rooms'>;
 type Message = Tables<'messages'>;
 type Profile = Tables<'profiles'>;
+type Attachment = Tables<'message_attachments'>;
 
 interface ChatWindowProps {
   room: Room;
@@ -27,7 +28,9 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [attachments, setAttachments] = useState<Record<string, Attachment[]>>({});
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -38,6 +41,7 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
   useEffect(() => {
     setMessages([]);
     setProfiles({});
+    setAttachments({});
     setReplyTo(null);
     loadMessages();
     loadMyRole();
@@ -53,6 +57,7 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
         const msg = payload.new as Message;
         setMessages(prev => [...prev, msg]);
         loadProfile(msg.user_id);
+        loadAttachmentsForMessages([msg.id]);
         if (isAtBottomRef.current) {
           setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
         }
@@ -97,6 +102,27 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
     if (data) setProfiles(prev => ({ ...prev, [userId]: data }));
   };
 
+  const loadAttachmentsForMessages = async (messageIds: string[]) => {
+    if (messageIds.length === 0) return;
+    const { data } = await supabase
+      .from('message_attachments')
+      .select('*')
+      .in('message_id', messageIds);
+    if (data && data.length > 0) {
+      setAttachments(prev => {
+        const next = { ...prev };
+        data.forEach(att => {
+          if (!next[att.message_id]) next[att.message_id] = [];
+          // Avoid duplicates
+          if (!next[att.message_id].find(a => a.id === att.id)) {
+            next[att.message_id] = [...next[att.message_id], att];
+          }
+        });
+        return next;
+      });
+    }
+  };
+
   const loadMessages = async () => {
     setLoading(true);
     const { data } = await supabase
@@ -117,13 +143,15 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
           .from('profiles')
           .select('*')
           .in('id', userIds);
-
         if (profileData) {
           const map: Record<string, Profile> = {};
           profileData.forEach(p => { map[p.id] = p; });
           setProfiles(map);
         }
       }
+
+      // Load attachments for all loaded messages
+      loadAttachmentsForMessages(sorted.map(m => m.id));
 
       setTimeout(() => messagesEndRef.current?.scrollIntoView(), 50);
     }
@@ -159,6 +187,8 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
           });
         }
       }
+
+      loadAttachmentsForMessages(sorted.map(m => m.id));
     }
     setLoading(false);
   };
@@ -172,19 +202,53 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
     }
   };
 
-  const handleSend = async (content: string) => {
-    if (!user || !content.trim()) return;
-    const { error } = await supabase.from('messages').insert({
+  const handleSend = async (content: string, files: PendingFile[]) => {
+    if (!user || (!content.trim() && files.length === 0)) return;
+
+    // Insert the message first
+    const { data: msgData, error } = await supabase.from('messages').insert({
       room_id: room.id,
       user_id: user.id,
       content: content.trim(),
       reply_to_id: replyTo?.id ?? null,
-    });
-    if (error) {
-      toast.error('Failed to send: ' + error.message);
-      console.error('Send message error:', error);
+    }).select().single();
+
+    if (error || !msgData) {
+      toast.error('Failed to send: ' + (error?.message ?? 'Unknown error'));
+      return;
     }
+
     setReplyTo(null);
+
+    // Upload files if any
+    if (files.length > 0) {
+      setUploading(true);
+      for (const pf of files) {
+        const ext = pf.file.name.split('.').pop() ?? 'bin';
+        const storagePath = `${room.id}/${msgData.id}/${crypto.randomUUID()}.${ext}`;
+
+        const { error: uploadErr } = await supabase.storage
+          .from('chat-attachments')
+          .upload(storagePath, pf.file, { contentType: pf.file.type });
+
+        if (uploadErr) {
+          toast.error(`Failed to upload ${pf.file.name}: ${uploadErr.message}`);
+          continue;
+        }
+
+        // Save attachment record
+        await supabase.from('message_attachments').insert({
+          message_id: msgData.id,
+          file_name: pf.file.name,
+          file_url: storagePath,
+          file_size: pf.file.size,
+          content_type: pf.file.type || 'application/octet-stream',
+        });
+      }
+      setUploading(false);
+      // Reload attachments for this message
+      loadAttachmentsForMessages([msgData.id]);
+    }
   };
 
   const handleEdit = async (messageId: string, content: string) => {
@@ -218,7 +282,6 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
 
   const handleStartCall = async (type: CallType) => {
     if (!user) return;
-    // Get first other member in the room to call
     const { data: members } = await supabase
       .from('room_members')
       .select('user_id')
@@ -303,6 +366,7 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
               isAdmin={isAdmin}
               repliedMessage={repliedMsg}
               repliedProfile={repliedMsg ? profiles[repliedMsg.user_id] : undefined}
+              attachments={attachments[msg.id]}
               onReply={() => setReplyTo(msg)}
               onEdit={handleEdit}
               onDelete={handleDelete}
@@ -318,6 +382,7 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
         replyTo={replyTo}
         replyProfile={replyTo ? profiles[replyTo.user_id] : undefined}
         onCancelReply={() => setReplyTo(null)}
+        uploading={uploading}
       />
     </div>
   );
