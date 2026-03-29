@@ -197,6 +197,22 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
     if (error) toast.error('Failed to delete');
   };
 
+  const handleBanUser = async (userId: string, username: string) => {
+    if (!user) return;
+    const confirmed = window.confirm(`Ban "${username}" from this room? They will be removed immediately.`);
+    if (!confirmed) return;
+    const { error } = await supabase.from('room_bans').insert({
+      room_id: room.id,
+      user_id: userId,
+      banned_by: user.id,
+    });
+    if (error) {
+      toast.error('Failed to ban user: ' + error.message);
+    } else {
+      toast.success(`${username} has been banned from this room`);
+    }
+  };
+
   const isOwner = room.owner_id === user?.id;
   const isAdmin = myRole === 'admin' || myRole === 'owner';
 
@@ -290,6 +306,7 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
               onReply={() => setReplyTo(msg)}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onBanUser={handleBanUser}
             />
           );
         })}
