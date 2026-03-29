@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Tables } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Reply, Pencil, Trash2, Check, X } from 'lucide-react';
+import { Reply, Pencil, Trash2, Check, X, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 type Message = Tables<'messages'>;
@@ -19,6 +19,7 @@ interface MessageBubbleProps {
   onReply: () => void;
   onEdit: (id: string, content: string) => void;
   onDelete: (id: string) => void;
+  onBanUser?: (userId: string, username: string) => void;
 }
 
 const AVATAR_COLORS = [
@@ -28,7 +29,7 @@ const AVATAR_COLORS = [
 
 export function MessageBubble({
   message, profile, isOwn, showAuthor, isAdmin,
-  repliedMessage, repliedProfile, onReply, onEdit, onDelete,
+  repliedMessage, repliedProfile, onReply, onEdit, onDelete, onBanUser,
 }: MessageBubbleProps) {
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
@@ -129,6 +130,11 @@ export function MessageBubble({
             {(isOwn || isAdmin) && (
               <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive" onClick={() => onDelete(message.id)} title="Delete">
                 <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
+            {isAdmin && !isOwn && onBanUser && (
+              <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive" onClick={() => onBanUser(message.user_id, profile?.username ?? 'Unknown')} title="Ban user">
+                <Ban className="h-3 w-3" />
               </Button>
             )}
           </div>
