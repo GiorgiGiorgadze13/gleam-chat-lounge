@@ -6,7 +6,8 @@ import { MessageInput, PendingFile } from './MessageInput';
 import { MessageBubble } from './MessageBubble';
 import { CallButton } from './CallButton';
 import { Button } from '@/components/ui/button';
-import { LogOut, ChevronUp, Hash } from 'lucide-react';
+import { LogOut, ChevronUp, Hash, Settings2 } from 'lucide-react';
+import { RoomAdminDialog } from './RoomAdminDialog';
 import { toast } from 'sonner';
 import type { CallType } from '@/hooks/useWebRTC';
 
@@ -37,6 +38,7 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
   const containerRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const [myRole, setMyRole] = useState<string>('member');
+  const [showAdmin, setShowAdmin] = useState(false);
 
   useEffect(() => {
     setMessages([]);
@@ -318,6 +320,12 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
             onVoiceCall={() => handleStartCall('voice')}
             onVideoCall={() => handleStartCall('video')}
           />
+          {isAdmin && !room.is_personal && (
+            <Button variant="ghost" size="sm" onClick={() => setShowAdmin(true)} className="h-7 text-xs text-muted-foreground gap-1" title="Room settings">
+              <Settings2 className="h-3 w-3" />
+              <span className="hidden sm:inline">Manage</span>
+            </Button>
+          )}
           {!isOwner && !room.is_personal && (
             <Button variant="ghost" size="sm" onClick={() => onLeaveRoom(room.id)} className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1">
               <LogOut className="h-3 w-3" />
@@ -384,6 +392,18 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
         onCancelReply={() => setReplyTo(null)}
         uploading={uploading}
       />
+
+      {isAdmin && !room.is_personal && user && (
+        <RoomAdminDialog
+          open={showAdmin}
+          onOpenChange={setShowAdmin}
+          room={room}
+          currentUserId={user.id}
+          isOwner={isOwner}
+          isAdmin={isAdmin}
+          onRoomDeleted={onRoomsChanged}
+        />
+      )}
     </div>
   );
 }
