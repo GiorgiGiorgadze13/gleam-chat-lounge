@@ -48,7 +48,8 @@ export default function AuthPage() {
         if (error) {
           toast.error(error.message);
         } else {
-          toast.success('Account created! Welcome!');
+          toast.success('Check your email to verify your account before signing in.');
+          setIsLogin(true);
         }
       }
     } catch (err: any) {
