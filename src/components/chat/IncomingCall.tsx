@@ -28,18 +28,18 @@ export function IncomingCall({ callerName, callType, onAccept, onReject }: Incom
         <div className="flex items-center gap-4">
           <Button
             variant="destructive"
-            size="icon"
-            className="h-14 w-14 rounded-full"
+            className="h-14 rounded-full px-6 flex items-center gap-2"
             onClick={onReject}
           >
             <PhoneOff className="h-6 w-6" />
+            <span>Decline</span>
           </Button>
           <Button
-            size="icon"
-            className="h-14 w-14 rounded-full bg-green-600 hover:bg-green-700"
+            className="h-14 rounded-full px-6 flex items-center gap-2 bg-green-600 hover:bg-green-700"
             onClick={onAccept}
           >
             <Phone className="h-6 w-6" />
+            <span>Answer</span>
           </Button>
         </div>
       </div>
