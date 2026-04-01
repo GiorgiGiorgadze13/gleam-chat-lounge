@@ -31,6 +31,7 @@ export function CallModal({
   const statusText = {
     calling: 'Calling...',
     ringing: 'Ringing...',
+    connecting: 'Connecting...',
     connected: 'Connected',
     ended: 'Call Ended',
     idle: '',

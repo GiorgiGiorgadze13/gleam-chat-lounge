@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { attachMediaStream, clearMediaStream, getIceServers } from '@/lib/webrtc';
 import { useAuth } from './useAuth';
 
 export type CallType = 'voice' | 'video';
-export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connected' | 'ended';
+export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connecting' | 'connected' | 'ended';
 
 interface CallState {
   status: CallStatus;
@@ -15,13 +16,6 @@ interface CallState {
   isVideoOff: boolean;
   callId: string | null;
 }
-
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-  ],
-};
 
 export function useWebRTC() {
   const { user } = useAuth();
@@ -43,14 +37,25 @@ export function useWebRTC() {
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
+  const disconnectTimeoutRef = useRef<number | null>(null);
+
+  const clearDisconnectTimeout = useCallback(() => {
+    if (disconnectTimeoutRef.current) {
+      window.clearTimeout(disconnectTimeoutRef.current);
+      disconnectTimeoutRef.current = null;
+    }
+  }, []);
 
   const cleanup = useCallback(() => {
+    clearDisconnectTimeout();
     localStream.current?.getTracks().forEach(t => t.stop());
     localStream.current = null;
     remoteStream.current = null;
     peerConnection.current?.close();
     peerConnection.current = null;
     pendingCandidates.current = [];
+    clearMediaStream(localVideoRef.current);
+    clearMediaStream(remoteVideoRef.current);
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
@@ -65,28 +70,41 @@ export function useWebRTC() {
       isVideoOff: false,
       callId: null,
     });
-  }, []);
+  }, [clearDisconnectTimeout]);
+
+  const scheduleDisconnectCleanup = useCallback(() => {
+    if (disconnectTimeoutRef.current) return;
+
+    disconnectTimeoutRef.current = window.setTimeout(() => {
+      console.warn('[WebRTC] Connection stayed disconnected, cleaning up call');
+      cleanup();
+    }, 10000);
+  }, [cleanup]);
 
   // Pass all needed values directly — never rely on callState closure
-  const setupPeerConnection = useCallback((params: {
+  const setupPeerConnection = useCallback(async (params: {
     roomId: string;
     remoteUserId: string;
     callType: CallType;
     userId: string;
   }) => {
     const { roomId, remoteUserId, callType, userId } = params;
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+    const iceServers = await getIceServers();
+    const pc = new RTCPeerConnection({
+      iceServers,
+      iceTransportPolicy: 'all',
+    });
     peerConnection.current = pc;
 
     const remote = new MediaStream();
     remoteStream.current = remote;
-    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remote;
+    await attachMediaStream(remoteVideoRef.current, remote);
 
     pc.ontrack = (event) => {
-      event.streams[0]?.getTracks().forEach(track => {
-        remote.addTrack(track);
-      });
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remote;
+      if (!remote.getTracks().some(track => track.id === event.track.id)) {
+        remote.addTrack(event.track);
+      }
+      void attachMediaStream(remoteVideoRef.current, remote);
     };
 
     pc.onicecandidate = async (event) => {
@@ -106,18 +124,29 @@ export function useWebRTC() {
     pc.onconnectionstatechange = () => {
       console.log('[WebRTC] Connection state:', pc.connectionState);
       if (pc.connectionState === 'connected') {
+        clearDisconnectTimeout();
         setCallState(prev => ({ ...prev, status: 'connected' }));
-      } else if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
+      } else if (pc.connectionState === 'disconnected') {
+        setCallState(prev => ({ ...prev, status: 'connecting' }));
+        scheduleDisconnectCleanup();
+      } else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
         cleanup();
       }
     };
 
     pc.oniceconnectionstatechange = () => {
       console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        clearDisconnectTimeout();
+      } else if (pc.iceConnectionState === 'disconnected') {
+        scheduleDisconnectCleanup();
+      } else if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
+        cleanup();
+      }
     };
 
     return pc;
-  }, [cleanup]);
+  }, [cleanup, clearDisconnectTimeout, scheduleDisconnectCleanup]);
 
   const addIceCandidateSafe = useCallback(async (pc: RTCPeerConnection, candidate: RTCIceCandidateInit) => {
     if (pc.remoteDescription) {
@@ -168,7 +197,7 @@ export function useWebRTC() {
         video: type === 'video',
       });
       localStream.current = stream;
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      await attachMediaStream(localVideoRef.current, stream);
 
       // Create call signal record (pending state)
       const { data: signal, error } = await supabase.from('call_signals').insert({
@@ -191,7 +220,7 @@ export function useWebRTC() {
       setCallState(prev => ({ ...prev, callId }));
 
       // Setup peer connection with explicit params (no stale closure)
-      const pc = setupPeerConnection({
+      const pc = await setupPeerConnection({
         roomId,
         remoteUserId: targetUserId,
         callType: type,
@@ -214,6 +243,7 @@ export function useWebRTC() {
             try {
               await pc.setRemoteDescription(new RTCSessionDescription(sig.signal_data.answer));
               console.log('[WebRTC] Remote description set (answer)');
+              setCallState(prev => ({ ...prev, status: 'connecting' }));
               await flushPendingCandidates(pc);
             } catch (e) {
               console.error('[WebRTC] Failed to set remote description:', e);
@@ -253,7 +283,7 @@ export function useWebRTC() {
     const roomId = signal.room_id;
 
     setCallState({
-      status: 'connected',
+      status: 'connecting',
       callType,
       remoteUserId: callerId,
       remoteUsername: null,
@@ -269,10 +299,10 @@ export function useWebRTC() {
         video: callType === 'video',
       });
       localStream.current = stream;
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      await attachMediaStream(localVideoRef.current, stream);
 
       // Setup peer connection with explicit params
-      const pc = setupPeerConnection({
+      const pc = await setupPeerConnection({
         roomId,
         remoteUserId: callerId,
         callType,
