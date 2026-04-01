@@ -46,15 +46,6 @@ export function useWebRTC() {
     }
   }, []);
 
-  const scheduleDisconnectCleanup = useCallback(() => {
-    if (disconnectTimeoutRef.current) return;
-
-    disconnectTimeoutRef.current = window.setTimeout(() => {
-      console.warn('[WebRTC] Connection stayed disconnected, cleaning up call');
-      cleanup();
-    }, 10000);
-  }, [cleanup]);
-
   const cleanup = useCallback(() => {
     clearDisconnectTimeout();
     localStream.current?.getTracks().forEach(t => t.stop());
@@ -81,6 +72,15 @@ export function useWebRTC() {
     });
   }, [clearDisconnectTimeout]);
 
+  const scheduleDisconnectCleanup = useCallback(() => {
+    if (disconnectTimeoutRef.current) return;
+
+    disconnectTimeoutRef.current = window.setTimeout(() => {
+      console.warn('[WebRTC] Connection stayed disconnected, cleaning up call');
+      cleanup();
+    }, 10000);
+  }, [cleanup]);
+
   // Pass all needed values directly — never rely on callState closure
   const setupPeerConnection = useCallback(async (params: {
     roomId: string;
@@ -102,7 +102,7 @@ export function useWebRTC() {
 
     pc.ontrack = (event) => {
       if (!remote.getTracks().some(track => track.id === event.track.id)) {
-        remote.addTrack(track);
+        remote.addTrack(event.track);
       }
       void attachMediaStream(remoteVideoRef.current, remote);
     };
