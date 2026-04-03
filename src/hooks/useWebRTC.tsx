@@ -92,6 +92,67 @@ export function useWebRTC() {
     }) ?? false;
   }, []);
 
+  const resolveOutgoingCallCollision = useCallback(async (
+    roomId: string,
+    userId: string,
+    targetUserId: string,
+    currentCallId: string,
+  ) => {
+    const cutoff = new Date(Date.now() - 30_000).toISOString();
+    const { data, error } = await supabase
+      .from('call_signals')
+      .select('id, caller_id, callee_id, status, created_at')
+      .eq('room_id', roomId)
+      .gte('created_at', cutoff)
+      .in('status', ['pending', 'ringing', 'active'])
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .limit(10);
+
+    if (error) {
+      console.warn('[WebRTC] Failed to resolve call collision:', error.message);
+      return true;
+    }
+
+    const pairSignals = (data ?? []).filter((signal) => {
+      const callerId = signal.caller_id;
+      const calleeId = signal.callee_id;
+
+      return (
+        (callerId === userId && calleeId === targetUserId) ||
+        (callerId === targetUserId && calleeId === userId)
+      );
+    });
+
+    if (pairSignals.length <= 1) {
+      return true;
+    }
+
+    const winner = pairSignals[0];
+    if (winner.id !== currentCallId) {
+      await updateCallSignalStatus(currentCallId, 'ended');
+      return false;
+    }
+
+    const duplicateIds = pairSignals
+      .slice(1)
+      .map((signal) => signal.id)
+      .filter((id) => id !== currentCallId);
+
+    if (duplicateIds.length > 0) {
+      const { error: updateError } = await supabase
+        .from('call_signals')
+        .update({ status: 'ended' })
+        .in('id', duplicateIds);
+
+      if (updateError) {
+        console.warn('[WebRTC] Failed to close duplicate calls:', updateError.message);
+      }
+    }
+
+    return true;
+  }, [updateCallSignalStatus]);
+
   const cleanup = useCallback(() => {
     clearDisconnectTimeout();
     localStream.current?.getTracks().forEach(t => t.stop());
@@ -283,6 +344,13 @@ export function useWebRTC() {
       callId = signal.id;
       setCallState(prev => ({ ...prev, callId }));
 
+      const canProceed = await resolveOutgoingCallCollision(roomId, user.id, targetUserId, callId);
+      if (!canProceed) {
+        toast.error('The other user is already calling you — answer that call instead');
+        cleanup();
+        return;
+      }
+
       // Setup peer connection with explicit params (no stale closure)
       const pc = await setupPeerConnection({
         roomId,
@@ -338,7 +406,7 @@ export function useWebRTC() {
       await updateCallSignalStatus(callId, 'ended');
       cleanup();
     }
-  }, [user, setupPeerConnection, cleanup, addIceCandidateSafe, flushPendingCandidates, hasRecentCallCollision, updateCallSignalStatus]);
+  }, [user, setupPeerConnection, cleanup, addIceCandidateSafe, flushPendingCandidates, hasRecentCallCollision, updateCallSignalStatus, resolveOutgoingCallCollision]);
 
   const answerCall = useCallback(async (signal: any) => {
     if (!user) return;
