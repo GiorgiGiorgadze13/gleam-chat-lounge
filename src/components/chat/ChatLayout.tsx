@@ -211,7 +211,7 @@ export function ChatLayout() {
           ) : showSettings ? (
             <SettingsPanel onClose={() => setShowSettings(false)} />
           ) : activeRoom ? (
-            <ChatWindow room={activeRoom} onLeaveRoom={handleLeaveRoom} onRoomsChanged={loadRooms} onStartCall={webrtc.startCall} />
+            <ChatWindow room={activeRoom} onLeaveRoom={handleLeaveRoom} onRoomsChanged={loadRooms} onStartCall={webrtc.startCall} callStatus={webrtc.callState.status} />
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
