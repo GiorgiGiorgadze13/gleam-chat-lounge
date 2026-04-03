@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { attachMediaStream, clearMediaStream, getIceServers } from '@/lib/webrtc';
 import { useAuth } from './useAuth';
+import { toast } from 'sonner';
 
 export type CallType = 'voice' | 'video';
 export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connecting' | 'connected' | 'ended';
@@ -38,12 +39,57 @@ export function useWebRTC() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const disconnectTimeoutRef = useRef<number | null>(null);
+  const callStateRef = useRef(callState);
+
+  useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
 
   const clearDisconnectTimeout = useCallback(() => {
     if (disconnectTimeoutRef.current) {
       window.clearTimeout(disconnectTimeoutRef.current);
       disconnectTimeoutRef.current = null;
     }
+  }, []);
+
+  const updateCallSignalStatus = useCallback(async (callId: string | null, status: string) => {
+    if (!callId) return;
+
+    const { error } = await supabase
+      .from('call_signals')
+      .update({ status })
+      .eq('id', callId);
+
+    if (error) {
+      console.warn(`[WebRTC] Failed to update call ${callId} to ${status}:`, error.message);
+    }
+  }, []);
+
+  const hasRecentCallCollision = useCallback(async (roomId: string, userId: string, targetUserId: string) => {
+    const cutoff = new Date(Date.now() - 30_000).toISOString();
+    const { data, error } = await supabase
+      .from('call_signals')
+      .select('caller_id, callee_id, status, created_at')
+      .eq('room_id', roomId)
+      .gte('created_at', cutoff)
+      .in('status', ['pending', 'ringing', 'active'])
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.warn('[WebRTC] Failed to check recent calls:', error.message);
+      return false;
+    }
+
+    return data?.some((signal) => {
+      const callerId = signal.caller_id;
+      const calleeId = signal.callee_id;
+
+      return (
+        (callerId === userId && calleeId === targetUserId) ||
+        (callerId === targetUserId && calleeId === userId)
+      );
+    }) ?? false;
   }, []);
 
   const cleanup = useCallback(() => {
@@ -71,6 +117,11 @@ export function useWebRTC() {
       callId: null,
     });
   }, [clearDisconnectTimeout]);
+
+  const abortLocalCall = useCallback(async () => {
+    await updateCallSignalStatus(callStateRef.current.callId, 'ended');
+    cleanup();
+  }, [cleanup, updateCallSignalStatus]);
 
   const scheduleDisconnectCleanup = useCallback(() => {
     if (disconnectTimeoutRef.current) return;
@@ -180,6 +231,19 @@ export function useWebRTC() {
   ) => {
     if (!user) return;
 
+    if (callStateRef.current.status !== 'idle') {
+      toast.error('Finish the current call first');
+      return;
+    }
+
+    const hasCollision = await hasRecentCallCollision(roomId, user.id, targetUserId);
+    if (hasCollision) {
+      toast.error('A call is already starting between you two');
+      return;
+    }
+
+    let callId: string | null = null;
+
     setCallState({
       status: 'calling',
       callType: type,
@@ -216,7 +280,7 @@ export function useWebRTC() {
         return;
       }
 
-      const callId = signal.id;
+      callId = signal.id;
       setCallState(prev => ({ ...prev, callId }));
 
       // Setup peer connection with explicit params (no stale closure)
@@ -271,9 +335,10 @@ export function useWebRTC() {
       console.log('[WebRTC] Offer sent, callId:', callId);
     } catch (err) {
       console.error('[WebRTC] Failed to start call:', err);
+      await updateCallSignalStatus(callId, 'ended');
       cleanup();
     }
-  }, [user, setupPeerConnection, cleanup, addIceCandidateSafe, flushPendingCandidates]);
+  }, [user, setupPeerConnection, cleanup, addIceCandidateSafe, flushPendingCandidates, hasRecentCallCollision, updateCallSignalStatus]);
 
   const answerCall = useCallback(async (signal: any) => {
     if (!user) return;
@@ -351,6 +416,8 @@ export function useWebRTC() {
         status: 'active',
       });
 
+      await updateCallSignalStatus(signal.id, 'active');
+
       console.log('[WebRTC] Answer sent');
 
       // Load caller profile
@@ -365,12 +432,14 @@ export function useWebRTC() {
       }
     } catch (err) {
       console.error('[WebRTC] Failed to answer call:', err);
+      await updateCallSignalStatus(signal.id, 'ended');
       cleanup();
     }
-  }, [user, setupPeerConnection, cleanup, addIceCandidateSafe, flushPendingCandidates]);
+  }, [user, setupPeerConnection, cleanup, addIceCandidateSafe, flushPendingCandidates, updateCallSignalStatus]);
 
   const rejectCall = useCallback(async (signal: any) => {
     if (!user) return;
+    await updateCallSignalStatus(signal.id, 'ended');
     await supabase.from('call_signals').insert({
       room_id: signal.room_id,
       caller_id: user.id,
@@ -401,7 +470,7 @@ export function useWebRTC() {
       });
     }
     cleanup();
-  }, [user, callState, cleanup]);
+  }, [user, cleanup, updateCallSignalStatus]);
 
   const toggleMute = useCallback(() => {
     const audioTrack = localStream.current?.getAudioTracks()[0];
@@ -426,6 +495,7 @@ export function useWebRTC() {
     startCall,
     answerCall,
     rejectCall,
+    abortLocalCall,
     hangUp,
     toggleMute,
     toggleVideo,
