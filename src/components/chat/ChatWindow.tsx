@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { LogOut, ChevronUp, Hash, Settings2 } from 'lucide-react';
 import { RoomAdminDialog } from './RoomAdminDialog';
 import { toast } from 'sonner';
-import type { CallType } from '@/hooks/useWebRTC';
+import { useWebRTC, type CallType } from '@/hooks/useWebRTC';
 
 type Room = Tables<'rooms'>;
 type Message = Tables<'messages'>;
@@ -27,6 +27,7 @@ const PAGE_SIZE = 50;
 
 export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: ChatWindowProps) {
   const { user } = useAuth();
+  const { callState } = useWebRTC();
   const [messages, setMessages] = useState<Message[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [attachments, setAttachments] = useState<Record<string, Attachment[]>>({});
@@ -317,6 +318,7 @@ export function ChatWindow({ room, onLeaveRoom, onRoomsChanged, onStartCall }: C
         </div>
         <div className="flex items-center gap-1">
           <CallButton
+            disabled={callState.status !== 'idle'}
             onVoiceCall={() => handleStartCall('voice')}
             onVideoCall={() => handleStartCall('video')}
           />
