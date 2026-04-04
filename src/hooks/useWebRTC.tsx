@@ -65,14 +65,19 @@ export function useWebRTC() {
     }
   }, []);
 
+  const endCallSignal = useCallback(async (callId: string | null = callStateRef.current.callId) => {
+    await updateCallSignalStatus(callId, 'ended');
+  }, [updateCallSignalStatus]);
+
   const hasRecentCallCollision = useCallback(async (roomId: string, userId: string, targetUserId: string) => {
     const cutoff = new Date(Date.now() - 30_000).toISOString();
     const { data, error } = await supabase
       .from('call_signals')
-      .select('caller_id, callee_id, status, created_at')
+      .select('caller_id, callee_id, status, created_at, signal_type')
       .eq('room_id', roomId)
       .gte('created_at', cutoff)
       .in('status', ['pending', 'ringing', 'active'])
+      .in('signal_type', ['offer-pending', 'offer'])
       .order('created_at', { ascending: false })
       .limit(10);
 
@@ -101,10 +106,11 @@ export function useWebRTC() {
     const cutoff = new Date(Date.now() - 30_000).toISOString();
     const { data, error } = await supabase
       .from('call_signals')
-      .select('id, caller_id, callee_id, status, created_at')
+      .select('id, caller_id, callee_id, status, created_at, signal_type')
       .eq('room_id', roomId)
       .gte('created_at', cutoff)
       .in('status', ['pending', 'ringing', 'active'])
+      .in('signal_type', ['offer-pending', 'offer'])
       .order('created_at', { ascending: true })
       .order('id', { ascending: true })
       .limit(10);
@@ -242,6 +248,7 @@ export function useWebRTC() {
         setCallState(prev => ({ ...prev, status: 'connecting' }));
         scheduleDisconnectCleanup();
       } else if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        void endCallSignal();
         cleanup();
       }
     };
@@ -253,12 +260,13 @@ export function useWebRTC() {
       } else if (pc.iceConnectionState === 'disconnected') {
         scheduleDisconnectCleanup();
       } else if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
+        void endCallSignal();
         cleanup();
       }
     };
 
     return pc;
-  }, [cleanup, clearDisconnectTimeout, scheduleDisconnectCleanup]);
+  }, [cleanup, clearDisconnectTimeout, scheduleDisconnectCleanup, endCallSignal]);
 
   const addIceCandidateSafe = useCallback(async (pc: RTCPeerConnection, candidate: RTCIceCandidateInit) => {
     if (pc.remoteDescription) {
@@ -383,6 +391,7 @@ export function useWebRTC() {
           } else if (sig.signal_type === 'ice-candidate' && sig.signal_data?.candidate) {
             await addIceCandidateSafe(pc, sig.signal_data.candidate);
           } else if (sig.signal_type === 'reject' || sig.signal_type === 'hangup') {
+            await updateCallSignalStatus(callId, 'ended');
             cleanup();
           }
         })
@@ -457,6 +466,7 @@ export function useWebRTC() {
           if (sig.signal_type === 'ice-candidate' && sig.signal_data?.candidate) {
             await addIceCandidateSafe(pc, sig.signal_data.candidate);
           } else if (sig.signal_type === 'hangup') {
+            await updateCallSignalStatus(signal.id, 'ended');
             cleanup();
           }
         })
@@ -524,8 +534,11 @@ export function useWebRTC() {
       cleanup();
       return;
     }
-    // Read current state values before cleanup
-    const { remoteUserId, roomId, callType } = callState;
+
+    const { remoteUserId, roomId, callType, callId } = callStateRef.current;
+
+    await updateCallSignalStatus(callId, 'ended');
+
     if (remoteUserId && roomId) {
       await supabase.from('call_signals').insert({
         room_id: roomId,
